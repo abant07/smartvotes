@@ -17,11 +17,13 @@ const Home = () => {
   const [vice, setVice] = useState([]);
   const [media, setMedia] = useState([]);
   const [treasurer, setTreasurer] = useState([]);
-  const [selectedVote, setSelectedVote] = useState({ name: '', position: '' });
-
+  const [selectedVotes, setSelectedVotes] = useState({});
+  const [hour, setHour] = useState(0);
+  const [minutes, setMinute] = useState(0);
+  const [seconds, setSeconds] = useState(0);
 
   const provider = new BrowserProvider(window.ethereum)
-  const contractAddress = '0xeff472Af1DE82928E664238639Bf95C5fB0341a9';
+  const contractAddress = '0x21c9Fa231F4Aed0a2702BE2B3ae976FB90C58E8F';
   const abi = [
     {
       "inputs": [
@@ -195,14 +197,9 @@ const Home = () => {
     {
       "inputs": [
         {
-          "internalType": "string",
-          "name": "name",
-          "type": "string"
-        },
-        {
-          "internalType": "string",
-          "name": "role",
-          "type": "string"
+          "internalType": "string[]",
+          "name": "names",
+          "type": "string[]"
         }
       ],
       "name": "vote",
@@ -262,14 +259,22 @@ const Home = () => {
   };
 
   const handleVoteChange = (name, position) => {
-    setSelectedVote({ name, position });
+    setSelectedVotes(prevVotes => ({
+      ...prevVotes,
+      [position]: { name, position }
+    }));
   };
 
   const renderDynamicRadioButtons = (candidates, position) => {
     return candidates.map((candidate, index) => (
       <label key={index} className='mb-8'>
         <span className='mr-2'>{Number(candidate.voteCount)} Votes</span>
-        <input type='radio' name={`category-${position}`} value={candidate.name} onChange={() => handleVoteChange(candidate.name, position)}/>
+        <input
+          type='radio'
+          name={`category-${position}`}
+          value={candidate.name}
+          onChange={() => handleVoteChange(candidate.name, position)}
+        />
         <span className='ml-2'><strong>{candidate.name} {Number(candidate.grade)}th</strong></span>
       </label>
     ));
@@ -304,6 +309,14 @@ const Home = () => {
       setVice(viceCandidates);
       setMedia(mediaCandidates);
       setTreasurer(treasurerCandidates);
+
+      const timeLeft = await readcontract.getRemainingTime();
+      var minutes = Math.round(Number(timeLeft) / 60)
+      var hours = Math.round(Number(minutes) / 60)
+      var seconds = Math.round(Number(minutes) % 60)
+      setHour(hours)
+      setMinute(minutes)
+      setSeconds(seconds)
     }
     getCandidates()
       .catch(console.error)
@@ -319,28 +332,45 @@ const Home = () => {
     setShowAdd(true);
   }
 
+  const getRemaining = async() => {
+    const readcontract = new Contract(contractAddress, abi, provider);
+    const timeLeft = await readcontract.getRemainingTime();
+    var minutes = Math.round(Number(timeLeft) / 60)
+    var hours = Math.round(Number(minutes) / 60)
+    var seconds = Math.round(Number(minutes) % 60)
+    setHour(hours)
+    setMinute(minutes)
+    setSeconds(seconds)
+  }
+  setInterval(getRemaining, 1000)
+
   const submitVote = async () => {
     try {
-      const { name, position } = selectedVote;
-      if (name && position) {
+      var votes = []
+      for (const position in selectedVotes) {
+        const { name, position: selectedPosition } = selectedVotes[position];
+        if (name && selectedPosition) {
+          votes.push(name)
+          votes.push(selectedPosition)
+        }
+      }
+      if (votes.length == 8) {
         const signer = await provider.getSigner();
         const contract = new Contract(contractAddress, abi, signer);
-        console.log(name)
-        console.log(position)
-        const voteTxn = await contract.vote(name, position);
+        const voteTxn = await contract.vote(votes);
         await voteTxn.wait();
         setPopupHeaderSuccess('Voting Complete!');
         setShowPopupSuccess(true);
         window.location.reload();
-      } else {
-        // Handle the case where a vote hasn't been selected
-        console.error('Please select a candidate and position before voting.');
-        setBalloonText('You have not voted for anyone');
-        setShowBalloon(true);
       }
-    } catch (error) {
+      else {
+        setPopupHeaderSuccess(`Please select a candidate for each position before voting.`);
+        setShowPopupSuccess(true);
+      }
+    } 
+    catch (error) {
       console.error('Error submitting vote:', error);
-      setBalloonText('You cannot vote again');
+      setBalloonText(error);
       setShowBalloon(true);
     }
   };
@@ -356,6 +386,7 @@ const Home = () => {
 
     return (
       <section className='w-full flex-center flex-col margin'>
+        <h1>Time Remaining: {hour}hrs {minutes}min {seconds}sec</h1>
         <h1 className='head_text darkgreen_gradient text-center'>
           ASB Elections
           <br className='max-md:hidden' />

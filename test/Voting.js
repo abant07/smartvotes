@@ -85,7 +85,7 @@ describe("Voting", function () {
     const candidates = await Voting.deploy(candidatesArray, 90);
     await candidates.waitForDeployment();
 
-    const voteTxn = await candidates.vote("Mark", "President");
+    const voteTxn = await candidates.vote(["Mark", "President", "Mike", "Vice President"]);
 
     await voteTxn.wait();
 
@@ -106,7 +106,7 @@ describe("Voting", function () {
 
     const expectedCandidates = [
       ["Mark", "President", 11, 1],
-      ["Mike", "Vice President", 9, 0],
+      ["Mike", "Vice President", 9, 1],
       ["Henry", "Media Manager", 12, 0],
       ["Rock", "Treasurer", 12, 0]
     ];

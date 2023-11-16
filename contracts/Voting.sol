@@ -48,16 +48,19 @@ contract Voting {
         }));
     }
 
-    function vote(string memory name, string memory role) public {
+    function vote(string[] memory names) public {
         require(!voters[msg.sender], "You have already voted.");
+        require(getVotingStatus(), "Time has run out");
 
-        for (uint256 i = 0; i < candidates.length; i++) {
-            if (compareStrings(candidates[i].name, name) &&
-                compareStrings(candidates[i].position, role)) {
-                candidates[i].voteCount++;
-                voters[msg.sender] = true;
+        for (uint256 j = 0; j < names.length; j+=2) {
+            for (uint256 i = 0; i < candidates.length; i++) {
+                if (compareStrings(candidates[i].name, names[j]) &&
+                    compareStrings(candidates[i].position, names[j+1])) {
+                    candidates[i].voteCount++;
+                }
             }
         }
+        voters[msg.sender] = true;
     }
 
     function compareStrings(string memory a, string memory b) internal pure returns (bool) {
